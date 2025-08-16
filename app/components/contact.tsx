@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { MapPin, Phone, Mail, Clock, Linkedin, Facebook } from "lucide-react"
+import { MapPin, Phone, Mail, Clock, Linkedin, Facebook, CheckCircle, XCircle, Loader2 } from "lucide-react"
 
 export function Contact() {
   const [formData, setFormData] = useState({
@@ -18,22 +18,37 @@ export function Contact() {
     message: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
+    setSubmissionStatus(null)
 
-    // Create mailto link to send email to minthukyaw@ideanet.tech
-    const subject = encodeURIComponent(`New Contact Form Submission from ${formData.name}`)
-    const body = encodeURIComponent(`
-Name: ${formData.name}
-Email: ${formData.email}
-Company: ${formData.company}
+    try {
+      const response = await fetch('/api/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-Message:
-${formData.message}
-    `)
-
-    const mailtoLink = `mailto:minthukyaw@ideanet.tech?subject=${subject}&body=${body}`
-    window.location.href = mailtoLink
+      if (response.ok) {
+        setSubmissionStatus({ success: true, message: 'Message sent successfully! We will get back to you soon.' })
+        setFormData({ name: "", email: "", company: "", message: "" }) // Clear form
+      } else {
+        throw new Error('Failed to send message. Please try again later.')
+      }
+    } catch (error) {
+      setSubmissionStatus({ success: false, message: 'Failed to send message. Please try again later.' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -199,13 +214,25 @@ ${formData.message}
                     required
                   />
                 </div>
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  Send Message
+                <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Message'
+                  )}
                 </Button>
+                {submissionStatus && (
+                  <div className={`mt-4 text-sm p-3 rounded-md flex items-center ${
+                      submissionStatus.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {submissionStatus.success ? <CheckCircle className="h-5 w-5 mr-2" /> : <XCircle className="h-5 w-5 mr-2" />}
+                    {submissionStatus.message}
+                  </div>
+                )}
               </form>
             </CardContent>
           </Card>
